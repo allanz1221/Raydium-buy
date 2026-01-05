@@ -8,6 +8,7 @@
     <title>Raydium Pulse | Trading Bot & Alertas</title>
     <meta name="description" content="Terminal automatizada para Raydium (RAY) con ejecución de swaps y alertas inteligentes.">
     <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIlJheWRpdW0gUHVsc2UiLAogICJzaG9ydF9uYW1lIjogIlJheVB1bHNlIiwKICAic3RhcnRfdXJsIjogIi4iLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwMjA2MTciLAogICJ0aGVtZV9jb2xvciI6ICIjM2I4MmY2IiwKICAiaWNvbnMiOiBbCiAgICB7CiAgICAgICJzcmMiOiAiaHR0cHM6Ly9hc3NldHMuY29pbmdlY2tvLmNvbS9jb2lucy9pbWFnZXMvMTUxNjMvc21hbGwvcmF5ZGl1bS5wbmciLAogICAgICAic2l6ZXMiOiAiNjR4NjQiLAogICAgICAidHlwZSI6ICJpbWFnZS9wbmciCiAgICB9CiAgXQp9">
 
     <link rel="icon" type="image/png" href="https://assets.coingecko.com/coins/images/15163/small/raydium.png">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -30,6 +31,7 @@
             50% { border-color: rgba(59, 130, 246, 0.8); box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); }
         }
         .gradient-bg { background: radial-gradient(circle at top right, #1e1b4b, #020617); }
+        .code-block { background: #000; border: 1px solid #334155; padding: 1rem; border-radius: 0.5rem; font-family: 'Fira Code', monospace; font-size: 0.75rem; overflow-x: auto; color: #10b981; }
     </style>
 
 <script type="importmap">
@@ -50,5 +52,12 @@
 <body class="gradient-bg min-h-screen">
     <div id="root"></div>
     <script type="module" src="index.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW reg error:', err));
+        });
+      }
+    </script>
 </body>
 </html>

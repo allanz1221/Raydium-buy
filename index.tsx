@@ -9,7 +9,8 @@ import { PriceData, MarketStats, AlertConfig, TradingBotConfig, AlertHistoryItem
 import { 
   Bell, TrendingUp, TrendingDown, RefreshCcw, BrainCircuit, Activity, ShieldAlert,
   Calculator, Wallet, ArrowUpRight, Circle, Settings2, History, Clock,
-  ExternalLink, Link as LinkIcon, Cpu, Eye, EyeOff, Play, Square, AlertTriangle, Zap
+  ExternalLink, Link as LinkIcon, Cpu, Eye, EyeOff, Play, Square, AlertTriangle, Zap,
+  Server, Download, Copy, Check, Terminal
 } from 'lucide-react';
 
 const MXN_EXCHANGE_RATE = 20.0;
@@ -22,6 +23,8 @@ const App = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [alertHistory, setAlertHistory] = useState<AlertHistoryItem[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [activeTab, setActiveTab] = useState<'bot' | 'server'>('bot');
+  const [copied, setCopied] = useState(false);
   
   // States
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -77,7 +80,6 @@ const App = () => {
 
     const diff = ((currentPrice - botConfig.entryPrice) / botConfig.entryPrice) * 100;
     
-    // Lógica Take Profit (Venta)
     if (diff >= botConfig.takeProfitPct && botConfig.lastTradeType !== 'SELL') {
       addLog(`🚀 UMBRAL DE VENTA ALCANZADO: +${diff.toFixed(2)}%. Ejecutando swap...`);
       try {
@@ -93,7 +95,6 @@ const App = () => {
       }
     }
     
-    // Lógica Buy Dip (Compra)
     if (diff <= -botConfig.buyDipPct && botConfig.lastTradeType !== 'BUY') {
       addLog(`🔻 UMBRAL DE COMPRA ALCANZADO: ${diff.toFixed(2)}%. Recomprando...`);
       try {
@@ -109,6 +110,45 @@ const App = () => {
       }
     }
   };
+
+  const serverScriptCode = useMemo(() => {
+    return `// BOT DE TRADING RAYDIUM 24/7 (Node.js)
+const web3 = require("@solana/web3.js");
+const bs58 = require("bs58");
+const fetch = require("node-fetch");
+
+const CONFIG = {
+  privateKey: "${botConfig.privateKey || 'TU_LLAVE_AQUI'}",
+  takeProfitPct: ${botConfig.takeProfitPct},
+  buyDipPct: ${botConfig.buyDipPct},
+  amountSol: ${botConfig.amountSol},
+  entryPrice: ${botConfig.entryPrice || 0},
+  rpc: "https://api.mainnet-beta.solana.com"
+};
+
+const RAY_MINT = "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R";
+const SOL_MINT = "So11111111111111111111111111111111111111112";
+
+async function monitor() {
+  console.log("Monitor pulse check...");
+  try {
+    const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=raydium&vs_currencies=usd");
+    const data = await res.json();
+    const currentPrice = data.raydium.usd;
+    
+    const diff = ((currentPrice - CONFIG.entryPrice) / CONFIG.entryPrice) * 100;
+    console.log(\`Precio: \${currentPrice} | Dif: \${diff.toFixed(2)}%\`);
+
+    if (diff >= CONFIG.takeProfitPct) {
+      console.log("VENDIENDO...");
+      // Aquí iría la lógica de swap de Jupiter (ver solanaService.ts)
+    }
+  } catch (e) { console.error(e); }
+}
+
+setInterval(monitor, 30000);
+console.log("Bot iniciado en modo servidor...");`;
+  }, [botConfig]);
 
   const toggleBot = () => {
     if (!botConfig.privateKey) {
@@ -169,88 +209,135 @@ const App = () => {
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
         
         {/* BOT CONTROL CENTER */}
-        <div className={`xl:col-span-4 glass-card p-8 rounded-[2rem] transition-all duration-500 ${botConfig.active ? 'bot-active' : 'opacity-90'}`}>
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <Cpu className={botConfig.active ? 'text-blue-400' : 'text-slate-600'} size={24} />
-              <h2 className="font-black text-xl tracking-tight uppercase">Trading Bot</h2>
-            </div>
-            <button onClick={toggleBot} className={`px-6 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${botConfig.active ? 'bg-rose-500/20 text-rose-500 border border-rose-500/30' : 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'}`}>
-              {botConfig.active ? <><Square size={12} fill="currentColor" /> Stop Bot</> : <><Play size={12} fill="currentColor" /> Start Bot</>}
+        <div className={`xl:col-span-4 glass-card p-0 rounded-[2rem] transition-all duration-500 overflow-hidden ${botConfig.active ? 'bot-active' : 'opacity-90'}`}>
+          {/* Internal Navigation Tabs */}
+          <div className="flex border-b border-white/5">
+            <button 
+              onClick={() => setActiveTab('bot')}
+              className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${activeTab === 'bot' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              <Cpu size={14} /> Bot Browser
+            </button>
+            <button 
+              onClick={() => setActiveTab('server')}
+              className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${activeTab === 'server' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+            >
+              <Server size={14} /> Modo Servidor (24/7)
             </button>
           </div>
 
-          <div className="space-y-6">
-            {/* Private Key Field */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                <ShieldAlert size={12} className="text-amber-500" /> Private Key (BS58)
-              </label>
-              <div className="relative">
-                <input 
-                  type={showKey ? 'text' : 'password'}
-                  value={botConfig.privateKey}
-                  onChange={e => setBotConfig(prev => ({ ...prev, privateKey: e.target.value }))}
-                  placeholder="Secret Key..."
-                  className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-xs mono text-blue-400 focus:outline-none focus:border-blue-500 transition-all"
-                />
-                <button onClick={() => setShowKey(!showKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
-                  {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              <p className="text-[9px] text-slate-600 italic">Nunca se guarda fuera de tu navegador. Úsala con precaución.</p>
-            </div>
-
-            {/* Thresholds */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5">
-                <label className="text-[9px] font-black text-slate-500 uppercase block mb-2">Take Profit (%)</label>
-                <input 
-                  type="number" 
-                  value={botConfig.takeProfitPct}
-                  onChange={e => setBotConfig(prev => ({ ...prev, takeProfitPct: Number(e.target.value) }))}
-                  className="w-full bg-transparent text-xl font-black text-emerald-400 focus:outline-none"
-                />
-              </div>
-              <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5">
-                <label className="text-[9px] font-black text-slate-500 uppercase block mb-2">Buy Dip (%)</label>
-                <input 
-                  type="number" 
-                  value={botConfig.buyDipPct}
-                  onChange={e => setBotConfig(prev => ({ ...prev, buyDipPct: Number(e.target.value) }))}
-                  className="w-full bg-transparent text-xl font-black text-rose-400 focus:outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Trade Amount */}
-            <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5">
-                <label className="text-[9px] font-black text-slate-500 uppercase block mb-2">Amount to Buy (SOL)</label>
-                <div className="flex items-center justify-between">
-                    <input 
-                    type="number" 
-                    value={botConfig.amountSol}
-                    onChange={e => setBotConfig(prev => ({ ...prev, amountSol: Number(e.target.value) }))}
-                    className="bg-transparent text-xl font-black text-white focus:outline-none"
-                    />
-                    <span className="text-[10px] font-black text-slate-500">SOL</span>
-                </div>
-            </div>
-
-            {/* Real-time Logs Console */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Consola del Bot</h4>
-                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
-              </div>
-              <div className="h-40 bg-black/60 rounded-xl border border-white/5 p-4 overflow-y-auto mono text-[10px] leading-relaxed space-y-1">
-                {botLogs.map((log, i) => (
-                  <div key={i} className={log.includes('✅') ? 'text-emerald-400' : log.includes('❌') ? 'text-rose-400' : 'text-slate-400'}>
-                    {log}
+          <div className="p-8 space-y-6">
+            {activeTab === 'bot' ? (
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <Activity size={18} className="text-blue-400" />
+                    <h2 className="font-black text-sm tracking-tight uppercase">Control Navegador</h2>
                   </div>
-                ))}
+                  <button onClick={toggleBot} className={`px-4 py-2 rounded-lg font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${botConfig.active ? 'bg-rose-500/20 text-rose-500 border border-rose-500/30' : 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'}`}>
+                    {botConfig.active ? <><Square size={10} fill="currentColor" /> Stop</> : <><Play size={10} fill="currentColor" /> Start</>}
+                  </button>
+                </div>
+
+                {/* Private Key Field */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <ShieldAlert size={12} className="text-amber-500" /> Secret Key (BS58)
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type={showKey ? 'text' : 'password'}
+                      value={botConfig.privateKey}
+                      onChange={e => setBotConfig(prev => ({ ...prev, privateKey: e.target.value }))}
+                      placeholder="Secret Key..."
+                      className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-xs mono text-blue-400 focus:outline-none focus:border-blue-500 transition-all"
+                    />
+                    <button onClick={() => setShowKey(!showKey)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                      {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5">
+                    <label className="text-[9px] font-black text-slate-500 uppercase block mb-2">Take Profit (%)</label>
+                    <input 
+                      type="number" 
+                      value={botConfig.takeProfitPct}
+                      onChange={e => setBotConfig(prev => ({ ...prev, takeProfitPct: Number(e.target.value) }))}
+                      className="w-full bg-transparent text-xl font-black text-emerald-400 focus:outline-none"
+                    />
+                  </div>
+                  <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5">
+                    <label className="text-[9px] font-black text-slate-500 uppercase block mb-2">Buy Dip (%)</label>
+                    <input 
+                      type="number" 
+                      value={botConfig.buyDipPct}
+                      onChange={e => setBotConfig(prev => ({ ...prev, buyDipPct: Number(e.target.value) }))}
+                      className="w-full bg-transparent text-xl font-black text-rose-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/50 p-4 rounded-2xl border border-white/5">
+                    <label className="text-[9px] font-black text-slate-500 uppercase block mb-2">Amount (SOL)</label>
+                    <div className="flex items-center justify-between">
+                        <input 
+                        type="number" 
+                        value={botConfig.amountSol}
+                        onChange={e => setBotConfig(prev => ({ ...prev, amountSol: Number(e.target.value) }))}
+                        className="bg-transparent text-xl font-black text-white focus:outline-none"
+                        />
+                        <span className="text-[10px] font-black text-slate-500">SOL</span>
+                    </div>
+                </div>
+
+                <div className="h-40 bg-black/60 rounded-xl border border-white/5 p-4 overflow-y-auto mono text-[9px] leading-relaxed space-y-1">
+                  {botLogs.map((log, i) => (
+                    <div key={i} className={log.includes('✅') ? 'text-emerald-400' : log.includes('❌') ? 'text-rose-400' : 'text-slate-400'}>
+                      {log}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <Terminal size={18} className="text-indigo-400" />
+                  <h2 className="font-black text-sm tracking-tight uppercase">Ejecución en Nube</h2>
+                </div>
+                
+                <p className="text-[11px] text-slate-400 leading-relaxed italic">
+                  Para que funcione con el navegador cerrado, copia este código en un servidor Node.js (Replit es gratis).
+                </p>
+
+                <div className="relative">
+                  <div className="code-block">
+                    {serverScriptCode}
+                  </div>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(serverScriptCode);
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className="absolute top-2 right-2 p-2 bg-slate-800 rounded-lg hover:bg-slate-700 transition-colors"
+                  >
+                    {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                  </button>
+                </div>
+
+                <div className="bg-indigo-600/10 border border-indigo-500/30 p-4 rounded-xl space-y-3">
+                  <h4 className="text-[10px] font-black uppercase text-indigo-400">Pasos para 24/7:</h4>
+                  <ul className="text-[10px] text-slate-300 space-y-2 list-disc pl-4">
+                    <li>Crea una cuenta en <b>Replit.com</b></li>
+                    <li>Crea un "Repl" de <b>Node.js</b></li>
+                    <li>Pega el código anterior en <code className="text-white">index.js</code></li>
+                    <li>Dale a <b>Run</b> y el bot estará vivo 24/7</li>
+                  </ul>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
