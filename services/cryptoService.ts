@@ -1,5 +1,5 @@
 
-import { PriceData, MarketStats } from '../types';
+import { PriceData, MarketStats } from '../types.ts';
 
 const RAYDIUM_ID = 'raydium';
 

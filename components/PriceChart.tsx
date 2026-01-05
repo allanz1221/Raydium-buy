@@ -9,7 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { PriceData } from '../types';
+import { PriceData } from '../types.ts';
 
 interface PriceChartProps {
   data: PriceData[];

@@ -1,10 +1,11 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
-import { fetchHistoricalData, fetchMarketStats } from './services/cryptoService';
-import { getMarketAnalysis } from './services/geminiService';
-import { PriceChart } from './components/PriceChart';
-import { PriceData, MarketStats, AlertConfig, SentimentSignal, SimulationResult, AlertHistoryItem } from './types';
+import { fetchHistoricalData, fetchMarketStats } from './services/cryptoService.ts';
+import { getMarketAnalysis } from './services/geminiService.ts';
+import { connectWallet, fetchRayBalance } from './services/solanaService.ts';
+import { PriceChart } from './components/PriceChart.tsx';
+import { PriceData, MarketStats, AlertConfig, SentimentSignal, SimulationResult, AlertHistoryItem } from './types.ts';
 import { 
   Bell, 
   TrendingUp, 
@@ -21,7 +22,8 @@ import {
   Settings2,
   History,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Link as LinkIcon
 } from 'lucide-react';
 
 const MXN_EXCHANGE_RATE = 20.0; // Fixed approximation for Peso to USD
@@ -35,6 +37,12 @@ const App = () => {
   const [investmentAmount, setInvestmentAmount] = useState<number>(10000);
   const [alertHistory, setAlertHistory] = useState<AlertHistoryItem[]>([]);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  
+  // Wallet States
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [realRayBalance, setRealRayBalance] = useState<number>(0);
+  const [connecting, setConnecting] = useState(false);
+
   const [alertConfig, setAlertConfig] = useState<AlertConfig>({
     threshold: 5,
     basePrice: 0,
@@ -62,12 +70,38 @@ const App = () => {
     return () => clearInterval(interval);
   }, [loadData]);
 
+  useEffect(() => {
+    if (walletAddress) {
+      updateWalletBalance();
+    }
+  }, [walletAddress]);
+
+  const updateWalletBalance = async () => {
+    if (walletAddress) {
+      const balance = await fetchRayBalance(walletAddress);
+      setRealRayBalance(balance);
+    }
+  };
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const address = await connectWallet();
+      setWalletAddress(address);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al conectar');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const refreshPrice = async () => {
     const currentStats = await fetchMarketStats();
     if (currentStats) {
       setStats(currentStats);
       setLastUpdate(new Date());
       checkAlerts(currentStats.currentPrice);
+      if (walletAddress) updateWalletBalance();
     }
   };
 
@@ -209,16 +243,37 @@ const App = () => {
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="hidden md:flex flex-col items-end mr-4">
-            <span className="text-[10px] font-black text-slate-500 uppercase">Última actualización</span>
-            <span className="text-xs font-mono text-slate-400">{lastUpdate.toLocaleTimeString()}</span>
-          </div>
+          {/* Connection Button */}
+          <button 
+            onClick={walletAddress ? undefined : handleConnect}
+            className={`flex items-center gap-3 px-6 py-4 rounded-2xl font-black transition-all shadow-xl active:scale-95 ${
+              walletAddress 
+                ? 'bg-slate-800 border border-white/10 text-slate-300' 
+                : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white'
+            }`}
+          >
+            {connecting ? (
+              <RefreshCcw size={20} className="animate-spin" />
+            ) : walletAddress ? (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
+                <span className="font-mono text-xs">{walletAddress.slice(0, 4)}...{walletAddress.slice(-4)}</span>
+              </div>
+            ) : (
+              <>
+                <LinkIcon size={20} />
+                <span className="uppercase tracking-tighter text-xs">Conectar Phantom</span>
+              </>
+            )}
+          </button>
+
           <button 
             onClick={refreshPrice}
             className="p-4 glass-card hover:bg-white/10 transition-all rounded-2xl group active:scale-95"
           >
             <RefreshCcw size={20} className={`${loading ? 'animate-spin text-blue-400' : 'text-slate-400 group-hover:text-white'}`} />
           </button>
+          
           <button 
             onClick={toggleAlerts}
             className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black transition-all shadow-xl active:scale-95 ${
@@ -228,12 +283,38 @@ const App = () => {
             }`}
           >
             <Bell size={20} fill={alertConfig.enabled ? "currentColor" : "none"} />
-            <span className="uppercase tracking-tighter text-sm">
-              {alertConfig.enabled ? `Vigilando ±${alertConfig.threshold}%` : 'Activar Alerta'}
+            <span className="uppercase tracking-tighter text-xs">
+              {alertConfig.enabled ? `Vigilando ±${alertConfig.threshold}%` : 'Alerta'}
             </span>
           </button>
         </div>
       </header>
+
+      {/* Wallet Balance Card (Hidden when disconnected) */}
+      {walletAddress && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="md:col-span-3 glass-card p-8 rounded-[2.5rem] border-purple-500/20 bg-gradient-to-r from-purple-900/10 to-blue-900/10 flex items-center justify-between">
+             <div className="flex items-center gap-6">
+                <div className="p-4 bg-purple-600/20 rounded-2xl border border-purple-500/30 shadow-lg shadow-purple-500/10">
+                   <img src="https://assets.coingecko.com/coins/images/15163/small/raydium.png" className="w-10 h-10" />
+                </div>
+                <div>
+                   <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Tu Saldo Real en Phantom</p>
+                   <div className="flex items-baseline gap-2">
+                     <h2 className="text-4xl font-black text-white tracking-tighter">{realRayBalance.toLocaleString()}</h2>
+                     <span className="text-xl font-black text-slate-500">RAY</span>
+                   </div>
+                </div>
+             </div>
+             <div className="text-right">
+                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Valor Estimado</p>
+                <h3 className="text-2xl font-black text-emerald-400 tracking-tighter">
+                  ${((realRayBalance * (stats?.currentPrice || 0)) * MXN_EXCHANGE_RATE).toLocaleString(undefined, { minimumFractionDigits: 2 })} MXN
+                </h3>
+             </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Grid: Sentiment & Simulator */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -281,10 +362,15 @@ const App = () => {
                 <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Previsión en MXN</p>
               </div>
             </div>
-            <div className="flex items-center gap-2 bg-slate-900 px-4 py-2 rounded-xl border border-white/5 shadow-inner">
-              <span className="text-slate-500 text-[10px] font-black uppercase">Tasa de cambio</span>
-              <span className="text-blue-400 font-mono font-bold text-sm">$20.00</span>
-            </div>
+            {walletAddress && (
+              <button 
+                onClick={() => setInvestmentAmount(realRayBalance * (stats?.currentPrice || 0) * MXN_EXCHANGE_RATE)}
+                className="flex items-center gap-2 bg-purple-600/20 hover:bg-purple-600/30 px-4 py-2 rounded-xl border border-purple-500/30 transition-all group"
+              >
+                <Wallet size={16} className="text-purple-400" />
+                <span className="text-purple-300 text-[10px] font-black uppercase group-hover:text-white">Usar Saldo Real</span>
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
