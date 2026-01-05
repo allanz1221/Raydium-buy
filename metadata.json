@@ -1,5 +1,5 @@
 {
-  "name": "Raydium Price Monitor & Alerts",
-  "description": "A high-performance crypto tracking dashboard specifically for Raydium (RAY) with real-time price alerts, 1-year historical charts, and AI-powered market sentiment analysis.",
+  "name": "Raydium Pulse - Alerts & Simulation",
+  "description": "A high-performance crypto tracking dashboard for Raydium (RAY) with real-time price alerts, investment simulation, technical traffic lights, and AI-powered market sentiment analysis.",
   "requestFramePermissions": []
 }
