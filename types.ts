@@ -5,10 +5,21 @@ export interface PriceData {
 }
 
 export interface AlertConfig {
-  threshold: number; // percentage, e.g., 5
+  threshold: number;
   basePrice: number;
   enabled: boolean;
   lastTriggered: number | null;
+}
+
+export interface TradingBotConfig {
+  active: boolean;
+  privateKey: string;
+  takeProfitPct: number;
+  buyDipPct: number;
+  lastTradeType: 'BUY' | 'SELL' | null;
+  entryPrice: number;
+  tradingPair: 'RAY_SOL';
+  amountSol: number;
 }
 
 export interface MarketStats {
@@ -35,5 +46,5 @@ export interface AlertHistoryItem {
   timestamp: number;
   price: number;
   percentageChange: number;
-  type: 'UP' | 'DOWN';
+  type: 'UP' | 'DOWN' | 'TRADE_SELL' | 'TRADE_BUY';
 }

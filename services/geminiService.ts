@@ -2,7 +2,8 @@
 import { GoogleGenAI } from "@google/genai";
 
 export const getMarketAnalysis = async (price: number, change24h: number, history: any[]) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  // Always use the API key directly from process.env.API_KEY
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const prompt = `
     Analiza la situación actual de la criptomoneda Raydium (RAY).
@@ -16,10 +17,12 @@ export const getMarketAnalysis = async (price: number, change24h: number, histor
   `;
 
   try {
+    // Upgraded to gemini-3-pro-preview for complex reasoning and market analysis tasks
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
     });
+    // Access the text property directly from the response object
     return response.text;
   } catch (error) {
     console.error("Gemini analysis error:", error);
